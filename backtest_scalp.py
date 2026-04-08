@@ -32,7 +32,7 @@ from src.notifications import send_telegram_message, esc
 from src.scalp_strategy import (
     TAKER_FEE, QUICK_TP_PCT, BE_ATR_MULT, MAX_HOLD_BARS, BUFFER_PCT, MIN_RR,
     is_kill_zone, prepare_market_data, get_htf_bias,
-    detect_signal, scan_5m_entry, check_5m_bos, check_volume_confirmation,
+    detect_signal, detect_breakout, scan_5m_entry, check_5m_bos, check_volume_confirmation,
     get_sweep_sl, get_1h_sweep_sl, calc_sl, calc_tp,
     calc_position_size, check_exit, check_sl_intrabar, handle_reverse,
 )
@@ -134,6 +134,7 @@ def run_scalp_backtest(days=30, capital=350.0, risk_pct=5.0, leverage=50, start_
     position = None
     skipped_bias = 0
     skipped_vsa = 0
+    breakout_trades = 0
     last_exit_bar = 0
     cooldown = 0
     max_hold = MAX_HOLD_BARS
@@ -197,10 +198,19 @@ def run_scalp_backtest(days=30, capital=350.0, risk_pct=5.0, leverage=50, start_
         # --- B. Check for new signal (or reverse) ---
         if i > start_idx + 2:
             timestamp = df.index[i]
-            bias_1h = get_htf_bias(htf_df, ctx['h1_swing_h'], ctx['h1_swing_l'], timestamp)
+            trend_bias = get_htf_bias(df, ctx['m15_swing_h'], ctx['m15_swing_l'], timestamp)
 
-            # Signal detection — dùng chung detect_signal() với live
-            new_action, _, _ = detect_signal(ctx, i, bias_1h)
+            # Signal detection (Sweep + Bias)
+            new_action, _, _ = detect_signal(ctx, i, trend_bias)
+            is_breakout = False
+            breakout_level = None
+
+            if new_action is None:
+                bo_action, bo_level, _ = detect_breakout(ctx, i)
+                if bo_action:
+                    new_action = bo_action
+                    is_breakout = True
+                    breakout_level = bo_level
 
             if new_action is not None:
                 should_open = False
@@ -220,31 +230,51 @@ def run_scalp_backtest(days=30, capital=350.0, risk_pct=5.0, leverage=50, start_
 
                 if should_open:
                     action = new_action
-                    signal_src = 'BOS+VSA'
 
-                    # VOLUME CONFIRMATION
-                    if not check_volume_confirmation(df, i):
-                        continue
+                    if is_breakout:
+                        breakout_trades += 1
+                        signal_src = 'BO_Momentum'
+                        entry = float(price)
 
-                    # 5M ENTRY + BOS
-                    bar_start = df.index[i-1] if i > 0 else df.index[i]
-                    bar_end = df.index[i]
-                    entry, has_5m = scan_5m_entry(action, price, ltf_df, bar_start, bar_end)
-                    if has_5m:
-                        signal_src += ':5m'
+                        # Volume confirm
+                        vol_sma = pd.Series(df['volume'].values).rolling(20).mean().values[i]
+                        if df['volume'].values[i] < vol_sma * 1.5:
+                            continue
 
-                    # BOS 5m CONFIRMATION
-                    has_bos = check_5m_bos(action, ltf_df, bar_start, bar_end)
-                    if not has_bos:
-                        continue
-                    signal_src += ':BOS'
-
-                    # SL — 1H SWEEP → ATR
-                    sl_1h = get_sweep_sl(action, timestamp, htf_df,
-                                         ctx['h1_swing_h'], ctx['h1_swing_l'])
-                    sl, sl_tag = calc_sl(action, entry, atr, sl_1h)
-                    if sl_tag:
+                        # SL: below/above broken swing level
+                        if action == 'LONG':
+                            sl = breakout_level - atr * 0.5
+                        else:
+                            sl = breakout_level + atr * 0.5
+                        sl_tag = 'BO_SL'
                         signal_src += ':' + sl_tag
+
+                    else:
+                        signal_src = 'BOS+VSA'
+
+                        # VOLUME CONFIRMATION
+                        if not check_volume_confirmation(df, i):
+                            continue
+
+                        # 5M ENTRY + BOS
+                        bar_start = df.index[i-1] if i > 0 else df.index[i]
+                        bar_end = df.index[i]
+                        entry, has_5m = scan_5m_entry(action, price, ltf_df, bar_start, bar_end)
+                        if has_5m:
+                            signal_src += ':5m'
+
+                        # BOS 5m CONFIRMATION
+                        has_bos = check_5m_bos(action, ltf_df, bar_start, bar_end)
+                        if not has_bos:
+                            continue
+                        signal_src += ':BOS'
+
+                        # SL — 1H SWEEP → ATR
+                        sl_1h = get_sweep_sl(action, timestamp, htf_df,
+                                             ctx['h1_swing_h'], ctx['h1_swing_l'])
+                        sl, sl_tag = calc_sl(action, entry, atr, sl_1h)
+                        if sl_tag:
+                            signal_src += ':' + sl_tag
 
                     # TP — ICT Structure
                     tp1, tp2, tp3 = calc_tp(action, entry, atr, i, ctx)
@@ -304,8 +334,9 @@ def run_scalp_backtest(days=30, capital=350.0, risk_pct=5.0, leverage=50, start_
     print(f"  Tổng lệnh: {total_trades}")
     print(f"  Win: {len(wins)} | Loss: {len(losses)}")
     print(f"  Winrate: {win_rate:.1f}%")
-    print(f"  Skipped (1H bias): {skipped_bias}")
+    print(f"  Skipped (15m bias): {skipped_bias}")
     print(f"  Skipped (VSA): {skipped_vsa}")
+    print(f"  Breakout trades: {breakout_trades}")
     if wins:
         print(f"  Avg Win: ${sum(t['pnl_dollar'] for t in wins)/len(wins):,.2f}")
     if losses:

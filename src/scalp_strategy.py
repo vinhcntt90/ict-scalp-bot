@@ -147,32 +147,32 @@ def prepare_market_data(df, htf_df=None, m30_df=None):
 
 
 # ============================================================
-# 4. HTF BIAS (1H ICT Structure + EMA)
+# 4. TREND BIAS (ICT Structure)
 # ============================================================
-def get_htf_bias(htf_df, h1_swing_h, h1_swing_l, timestamp=None):
+def get_htf_bias(df, swing_h, swing_l, timestamp=None):
     """
-    1H Bias: ICT structure only (HH/HL/LH/LL).
-    Không dùng EMA — tránh double lag.
+    Trend Bias: ICT structure only (HH/HL/LH/LL).
+    Now uses 15m data instead of 1H to catch reversals earlier.
 
     Args:
         timestamp: if provided, filter data up to this timestamp (for backtest)
                    if None, use all data (for live)
     """
-    if htf_df is None or len(htf_df) < 50:
+    if df is None or len(df) < 50:
         return None
 
     if timestamp is not None:
         # Backtest mode: filter swing points up to timestamp
-        mask = htf_df.index <= timestamp
+        mask = df.index <= timestamp
         if mask.sum() < 20:
             return None
-        h1_idx = mask.sum() - 1
-        recent_sh = [s for s in h1_swing_h if s['bar'] <= h1_idx]
-        recent_sl = [s for s in h1_swing_l if s['bar'] <= h1_idx]
+        max_idx = mask.sum() - 1
+        recent_sh = [s for s in swing_h if s['bar'] <= max_idx]
+        recent_sl = [s for s in swing_l if s['bar'] <= max_idx]
     else:
         # Live mode: use all data
-        recent_sh = h1_swing_h
-        recent_sl = h1_swing_l
+        recent_sh = swing_h
+        recent_sl = swing_l
 
     # ICT structure: expanded patterns
     # Equal = within 0.15% tolerance (consolidation / accumulation zone)
@@ -207,29 +207,87 @@ def get_htf_bias(htf_df, h1_swing_h, h1_swing_l, timestamp=None):
     return None  # Structure không rõ → chặn signal
 
 
+from src.ict_core import detect_liquidity_sweep
+
 # ============================================================
 # 5. SIGNAL DETECTION (ICT Liquidity Sweep)
 # ============================================================
-def detect_signal(ctx, i, htf_bias):
+def detect_signal(ctx, i, htf_bias=None):
     """
-    No-sweep signal: candle direction + 1H bias filter.
+    Signal: ICT Liquidity Sweep on current timeframe + Trend Bias Filter.
+    Cần Sweep hợp lệ VÀ phải cùng chiều với Bias.
 
     Returns:
-        (action, None, None) or (None, None, None)
+        (action, sweep_price, sweep_bar) or (None, None, None)
     """
     if htf_bias is None:
         return None, None, None
 
-    c = ctx['c']
-    o = ctx['o']
-    if i < 2:
+    atr_series = ctx['atr_series']
+    if i >= len(atr_series):
+        return None, None, None
+    atr = atr_series.iloc[i] if not pd.isna(atr_series.iloc[i]) else 0
+    if atr <= 0:
         return None, None, None
 
-    # Direction from 15m candle
-    if c[i] > o[i] and htf_bias == 'LONG':
-        return 'LONG', None, None
-    elif c[i] < o[i] and htf_bias == 'SHORT':
-        return 'SHORT', None, None
+    # Detect sweep
+    st, sp, sb = detect_liquidity_sweep(
+        ctx['h'], ctx['l'], ctx['c'], ctx['o'],
+        ctx['m15_swing_h'], ctx['m15_swing_l'], i, atr
+    )
+
+    if not st:
+        return None, None, None
+
+    action = 'LONG' if st == 'BULLISH_SWEEP' else 'SHORT'
+    
+    # Filter by bias
+    if action != htf_bias:
+        return None, None, None
+        
+    return action, sp, sb
+
+
+# ============================================================
+# 5b. BREAKOUT MOMENTUM DETECTION
+# ============================================================
+def detect_breakout(ctx, i, atr_mult=1.0):
+    """
+    Detect explosive moves that don't sweep liquidity but just break structure.
+    Requires high momentum (body size > ATR) and breaking a recent swing point.
+    """
+    atr_series = ctx['atr_series']
+    if i >= len(atr_series) or i < 20:
+        return None, None, None
+        
+    atr = atr_series.iloc[i] if not pd.isna(atr_series.iloc[i]) else 0
+    if atr <= 0:
+        return None, None, None
+
+    c = ctx['c']
+    o = ctx['o']
+    
+    body = abs(c[i] - o[i])
+    if body < atr * atr_mult:
+        return None, None, None
+
+    # Get recent swing points (strict strictly BEFORE this bar to avoid lookahead)
+    recent_sh = [s for s in ctx['m15_swing_h'] if s['bar'] < i]
+    recent_sl = [s for s in ctx['m15_swing_l'] if s['bar'] < i]
+    
+    if not recent_sh or not recent_sl:
+        return None, None, None
+
+    last_sh = recent_sh[-1]['price']
+    last_sl = recent_sl[-1]['price']
+
+    # Bullish Breakout
+    if c[i] > o[i] and c[i] > last_sh and o[i] <= last_sh:
+        return 'LONG', last_sh, 'BO_Momentum'
+
+    # Bearish Breakout
+    if c[i] < o[i] and c[i] < last_sl and o[i] >= last_sl:
+        return 'SHORT', last_sl, 'BO_Momentum'
 
     return None, None, None
 

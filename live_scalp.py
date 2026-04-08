@@ -63,7 +63,7 @@ from src.notifications import send_telegram_message, esc
 from src.scalp_strategy import (
     TAKER_FEE, QUICK_TP_PCT, BE_ATR_MULT, MAX_HOLD_BARS, BUFFER_PCT,
     TRAILING_ATR, MIN_RR, ATR_SL_MULT, prepare_market_data, get_htf_bias,
-    detect_signal, scan_5m_entry, check_5m_bos, check_volume_confirmation,
+    detect_signal, detect_breakout, scan_5m_entry, check_5m_bos, check_volume_confirmation,
     get_sweep_sl, get_1h_sweep_sl, calc_sl, calc_tp,
     calc_position_size, check_exit, check_sl_intrabar, handle_reverse,
 )
@@ -120,45 +120,62 @@ def detect_scalp_signals(df, htf_df=None, ltf_df=None, m30_df=None, from_cache=F
     ctx = prepare_market_data(df, htf_df)
     atr_series = ctx['atr_series']
     atr = atr_series.iloc[i] if i < len(atr_series) and not pd.isna(atr_series.iloc[i]) else 0
-    if atr <= 0:
-        return []
+    # 15m Trend Bias
+    trend_bias = get_htf_bias(df, ctx['m15_swing_h'], ctx['m15_swing_l'])
 
-    # HTF Bias
-    htf_bias = get_htf_bias(htf_df, ctx['h1_swing_h'], ctx['h1_swing_l']) if htf_df is not None else None
+    # Signal detection (Sweep + 15m bias filter)
+    action, sweep_price, sweep_bar = detect_signal(ctx, i, trend_bias)
+    is_breakout = False
+    bo_level = None
 
-    # Signal detection (sweep + bias filter)
-    action, sweep_price, sweep_bar = detect_signal(ctx, i, htf_bias)
     if action is None:
-        if htf_bias:
-            # Check if blocked by bias for logging
-            from src.ict_core import detect_liquidity_sweep as _dls
-            st, sp, sb = _dls(ctx['h'], ctx['l'], ctx['c'], ctx['o'],
-                              ctx['m15_swing_h'], ctx['m15_swing_l'], i, atr)
-            if st:
-                test_action = 'LONG' if st == 'BULLISH_SWEEP' else 'SHORT'
-                if htf_bias and test_action != htf_bias:
-                    print(f"  ⏭️ Skipped {test_action}: ngược 1H bias ({htf_bias})")
-        return []
+        bo_action, bo_lvl, bo_tag = detect_breakout(ctx, i)
+        if bo_action:
+            action = bo_action
+            is_breakout = True
+            bo_level = bo_lvl
+            print(f"  🚀 Breakout {action} detected! Phá {bo_level:,.2f}")
+        else:
+            if trend_bias:
+                # Check if blocked by bias for logging
+                from src.ict_core import detect_liquidity_sweep as _dls
+                st, sp, sb = _dls(ctx['h'], ctx['l'], ctx['c'], ctx['o'],
+                                  ctx['m15_swing_h'], ctx['m15_swing_l'], i, atr)
+                if st:
+                    test_action = 'LONG' if st == 'BULLISH_SWEEP' else 'SHORT'
+                    if trend_bias and test_action != trend_bias:
+                        print(f"  ⏭️ Skipped {test_action}: ngược 15m bias ({trend_bias})")
+            return []
 
-    signal_src = 'ICT:Sweep'
     timestamp = df.index[i]
     c = ctx['c']
 
-    # VOLUME CONFIRMATION
-    if not check_volume_confirmation(df, i):
-        sym_name = df.attrs.get('symbol', '') if hasattr(df, 'attrs') else ''
-        sym_short = sym_name.replace('USDT', '') if sym_name else ''
-        print(f"  ⏭️ Skipped: Low volume ({sym_short})")
-        try:
-            skip_msg = f"""⏭️ *SKIPPED \\- Low Volume*{f" \\\\({esc(sym_short)}\\\\)" if sym_short else ""}
+    if is_breakout:
+        signal_src = 'ICT:BO_Momentum'
+        entry = float(c[i])
+        
+        # Volume confirm for BO
+        vol_sma = pd.Series(df['volume'].values).rolling(20).mean().values[i]
+        if df['volume'].values[i] < vol_sma * 1.5:
+            print(f"  ⏭️ Skipped Breakout: Volume yếu")
+            return []
+            
+        if action == 'LONG':
+            sl = bo_level - atr * 0.5
+        else:
+            sl = bo_level + atr * 0.5
+        sl_tag = 'BO_SL'
+        signal_src += ':' + sl_tag
 
-{esc(action)} @ ${esc(f"{c[i]:,.2f}")}
-Sweep detected nhưng Volume yếu
-🕐 {esc(str(timestamp + pd.Timedelta(hours=7)))}"""
-            send_telegram_message(skip_msg, parse_mode='MarkdownV2')
-        except:
-            pass
-        return []
+    else:
+        signal_src = 'ICT:Sweep'
+
+        # VOLUME CONFIRMATION
+        if not check_volume_confirmation(df, i):
+            sym_name = df.attrs.get('symbol', '') if hasattr(df, 'attrs') else ''
+            sym_short = sym_name.replace('USDT', '') if sym_name else ''
+            print(f"  ⏭️ Skipped: Low volume ({sym_short})")
+            return []
 
     # 5m Entry
     bar_start = df.index[i-1] if i > 0 else df.index[i]
@@ -202,7 +219,7 @@ Sweep detected nhưng Volume yếu
         'tp2': tp2,
         'tp3': tp3,
         'atr': atr,
-        'htf_bias': htf_bias,
+        'trend_bias': trend_bias,
         'sweep_price': sweep_price,
         'time': str(timestamp + pd.Timedelta(hours=7)),
     }
