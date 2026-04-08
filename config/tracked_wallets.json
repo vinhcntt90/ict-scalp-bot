@@ -1,0 +1,13 @@
+{
+    "wallets": [
+        {
+            "address": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+            "label": "Whale #1"
+        }
+    ],
+    "settings": {
+        "min_position_usd": 1000,
+        "coins_filter": ["BTC", "ETH"],
+        "send_telegram": true
+    }
+}

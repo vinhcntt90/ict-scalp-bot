@@ -1,0 +1,171 @@
+{
+  "wallets": [
+    {
+      "address": "0xd4584Bf988C9E8994688b56484E2F74cEAEeFB20",
+      "label": "Arkham Whale",
+      "note": "Tracked from Arkham Intel"
+    },
+    {
+      "address": "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
+      "label": "Hot Whale #2",
+      "note": "Auto-discovered 17/03 | Vol $816,773,333 | 23 txs",
+      "auto": true
+    },
+    {
+      "address": "0xd226997439ecfbeff8e110c8c78c8a7eefd19f89",
+      "label": "Hot Whale #3",
+      "note": "Auto-discovered 17/03 | Vol $314,630,776 | 8 txs",
+      "auto": true
+    },
+    {
+      "address": "0x06cff7088619c7178f5e14f0b119458d08d2f5ef",
+      "label": "Hot Whale #4",
+      "note": "Auto-discovered 17/03 | Vol $292,172,841 | 9 txs",
+      "auto": true
+    },
+    {
+      "address": "0x6e2743c18690d05dd2ea1ecb7fe86322fcd6e491",
+      "label": "Hot Whale #5",
+      "note": "Auto-discovered 17/03 | Vol $115,752,563 | 4 txs",
+      "auto": true
+    },
+    {
+      "address": "0x96e133f85342aad69d2ad432f93d699385fb978f",
+      "label": "Hot Whale #6",
+      "note": "Auto-discovered 17/03 | Vol $93,523,550 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x13f12f5d8b269197be17f0ad4f0a5b27463c7839",
+      "label": "Hot Whale #7",
+      "note": "Auto-discovered 17/03 | Vol $79,600,000 | 3 txs",
+      "auto": true
+    },
+    {
+      "address": "0x59cd1c87501baa753d0b5b5ab5d8416a45cd71db",
+      "label": "Hot Whale #8",
+      "note": "Auto-discovered 17/03 | Vol $23,081,700 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0xbb4d1dc5c1abec4ea11166ec97e714862863ad1d",
+      "label": "Hot Whale #9",
+      "note": "Auto-discovered 17/03 | Vol $18,500,000 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x1f2f10d1c40777ae1da742455c65828ff36df387",
+      "label": "Hot Whale #10",
+      "note": "Auto-discovered 17/03 | Vol $10,076,433 | 6 txs",
+      "auto": true
+    },
+    {
+      "address": "0x0584f6a93718d7de52b40a71b42439acee4be655",
+      "label": "Hot Whale #11",
+      "note": "Auto-discovered 17/03 | Vol $19,438,167 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0xf1c25bb78b7b70cff64a446de38e50c8a540f32a",
+      "label": "Hot Whale #12",
+      "note": "Auto-discovered 17/03 | Vol $16,045,227 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0xf07f571fccddfd4ee1ca2f8f5e702b9b33a1ef6b",
+      "label": "Hot Whale #13",
+      "note": "Auto-discovered 17/03 | Vol $16,045,227 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x76a32d4ff52a9a3818363d78accce5e883d11e71",
+      "label": "Hot Whale #14",
+      "note": "Auto-discovered 17/03 | Vol $12,000,000 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x8a01f136c35823a158f95b04943a5fc3d8f794d9",
+      "label": "Hot Whale #15",
+      "note": "Auto-discovered 17/03 | Vol $8,000,000 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0xffe15ff598e719d29dfe5e1d60be1a5521a779ae",
+      "label": "Hot Whale #16",
+      "note": "Auto-discovered 17/03 | Vol $19,949,320 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x71e676c3eb34f19a108ba87974e0dd92d3ef9d44",
+      "label": "Hot Whale #17",
+      "note": "Auto-discovered 17/03 | Vol $19,200,000 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x877183685d77fdbc3390b03bd99d58ffbd9dd62b",
+      "label": "Hot Whale #18",
+      "note": "Auto-discovered 17/03 | Vol $17,000,000 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0xb5f80b0d276bc4ecc2e95f9bd36bc368361f87a6",
+      "label": "Hot Whale #19",
+      "note": "Auto-discovered 17/03 | Vol $8,986,169 | 3 txs",
+      "auto": true
+    },
+    {
+      "address": "0xecf0e8a7fe90341382a59ad3e5953ac6a4150e76",
+      "label": "Hot Whale #20",
+      "note": "Auto-discovered 17/03 | Vol $6,799,103 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x549d835356d92983abb76e4cae639f7857963425",
+      "label": "Hot Whale #21",
+      "note": "Auto-discovered 17/03 | Vol $5,399,999 | 2 txs",
+      "auto": true
+    },
+    {
+      "address": "0x879d8aa88c4e4baaf4c7da0f7290e2c483bcaa51",
+      "label": "Hot Whale #22",
+      "note": "Auto-discovered 18/03 | Vol $6,651,920 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x682ea8aa9b23250e0e240580e8ae55205f612979",
+      "label": "Hot Whale #23",
+      "note": "Auto-discovered 18/03 | Vol $21,852,946 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x225f99aaaa914d0481ef3a0bedd8aabf1b9c4d1d",
+      "label": "Hot Whale #24",
+      "note": "Auto-discovered 18/03 | Vol $21,789,948 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0xab5a9fcb27e4f97e87a536e768b9cb49dc8b1a4f",
+      "label": "Hot Whale #25",
+      "note": "Auto-discovered 18/03 | Vol $9,999,999 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x9151f5c7a37968d8ca8176c0647073dfe77bd918",
+      "label": "Hot Whale #26",
+      "note": "Auto-discovered 18/03 | Vol $9,999,999 | 1 txs",
+      "auto": true
+    },
+    {
+      "address": "0x026346aa00bcbfdbfa2f8f87ec963d2939018bdd",
+      "label": "Hot Whale #27",
+      "note": "Auto-discovered 18/03 | Vol $5,965,534 | 1 txs",
+      "auto": true
+    }
+  ],
+  "settings": {
+    "lookback_blocks": 2000,
+    "min_eth": 0.5,
+    "min_token_usd": 5000,
+    "send_telegram": true
+  }
+}
