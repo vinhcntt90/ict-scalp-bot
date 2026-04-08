@@ -151,8 +151,8 @@ def prepare_market_data(df, htf_df=None, m30_df=None):
 # ============================================================
 def get_htf_bias(htf_df, h1_swing_h, h1_swing_l, timestamp=None):
     """
-    1H Bias: ICT structure (HH/HL/LH/LL) + EMA 20/50.
-    Both must agree. Disagree = None (blocked).
+    1H Bias: ICT structure only (HH/HL/LH/LL).
+    Không dùng EMA — tránh double lag.
 
     Args:
         timestamp: if provided, filter data up to this timestamp (for backtest)
@@ -161,35 +161,21 @@ def get_htf_bias(htf_df, h1_swing_h, h1_swing_l, timestamp=None):
     if htf_df is None or len(htf_df) < 50:
         return None
 
-    htf_c = htf_df['close'].values
-
     if timestamp is not None:
-        # Backtest mode: filter data up to timestamp
+        # Backtest mode: filter swing points up to timestamp
         mask = htf_df.index <= timestamp
         if mask.sum() < 20:
             return None
         h1_idx = mask.sum() - 1
-
-        # EMA bias (rolling)
-        e20 = pd.Series(htf_c[:h1_idx+1]).ewm(span=20).mean().iloc[-1]
-        e50 = pd.Series(htf_c[:h1_idx+1]).ewm(span=50).mean().iloc[-1]
-        ema_bias = 'LONG' if e20 > e50 else 'SHORT'
-
-        # ICT structure bias (filter by bar index)
         recent_sh = [s for s in h1_swing_h if s['bar'] <= h1_idx]
         recent_sl = [s for s in h1_swing_l if s['bar'] <= h1_idx]
     else:
         # Live mode: use all data
-        htf_ema20 = pd.Series(htf_c).ewm(span=20).mean().values
-        htf_ema50 = pd.Series(htf_c).ewm(span=50).mean().values
-        ema_bias = 'LONG' if htf_ema20[-1] > htf_ema50[-1] else 'SHORT'
-
         recent_sh = h1_swing_h
         recent_sl = h1_swing_l
 
     # ICT structure: expanded patterns
     # Equal = within 0.15% tolerance (consolidation / accumulation zone)
-    ict_bias = None
     if len(recent_sh) >= 2 and len(recent_sl) >= 2:
         sh1, sh2 = recent_sh[-2], recent_sh[-1]
         sl1, sl2 = recent_sl[-2], recent_sl[-1]
@@ -204,27 +190,21 @@ def get_htf_bias(htf_df, h1_swing_h, h1_swing_l, timestamp=None):
 
         # Bullish patterns (đáy nâng hoặc đỉnh phá)
         if hh and hl:           # ⭐⭐⭐ Classic uptrend
-            ict_bias = 'LONG'
+            return 'LONG'
         elif hh and el:         # ⭐⭐ Breakout + accumulation
-            ict_bias = 'LONG'
+            return 'LONG'
         elif eh and hl:         # ⭐⭐ Đáy nâng, sắp breakout
-            ict_bias = 'LONG'
+            return 'LONG'
 
         # Bearish patterns (đỉnh hạ hoặc đáy phá)
         elif lh and ll:         # ⭐⭐⭐ Classic downtrend
-            ict_bias = 'SHORT'
+            return 'SHORT'
         elif lh and el:         # ⭐⭐ Breakdown + distribution
-            ict_bias = 'SHORT'
+            return 'SHORT'
         elif eh and ll:         # ⭐⭐ Đỉnh giữ, đáy phá
-            ict_bias = 'SHORT'
+            return 'SHORT'
 
-    # Both must agree
-    if ict_bias and ict_bias == ema_bias:
-        return ict_bias      # Strong confirmation
-    elif ict_bias is None:
-        return ema_bias      # No ICT data → fallback EMA only
-    else:
-        return None          # Disagree → block signal
+    return None  # Structure không rõ → chặn signal
 
 
 # ============================================================
@@ -252,6 +232,7 @@ def detect_signal(ctx, i, htf_bias):
         return 'SHORT', None, None
 
     return None, None, None
+
 
 
 # ============================================================
